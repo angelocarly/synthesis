@@ -32,7 +32,7 @@
 *.app
 
 # Build files
-./build/
+build/
 
 # Project files
-./.idea/
+.idea/
