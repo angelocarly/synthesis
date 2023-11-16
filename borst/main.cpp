@@ -26,7 +26,7 @@ class ExampleEngine
         }
 
     private:
-        example::TestPresenter mPresenter;
+        borst::TestPresenter mPresenter;
 };
 
 int main()

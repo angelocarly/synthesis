@@ -1,4 +1,4 @@
-#include "example/TestPresenter.h"
+#include "borst/TestPresenter.h"
 
 #include "vkt/Device.h"
 #include "vkt/ForwardDecl.h"
@@ -7,7 +7,7 @@
 #include "vkt/Shader.h"
 #include "vkt/ComputePipeline.h"
 
-example::TestPresenter::TestPresenter( burst::PresentContext const & inContext )
+borst::TestPresenter::TestPresenter( burst::PresentContext const & inContext )
 :
     mContext( inContext ),
     mComputeDescriptorSetLayout(
@@ -130,7 +130,7 @@ example::TestPresenter::TestPresenter( burst::PresentContext const & inContext )
 
 }
 
-example::TestPresenter::~TestPresenter()
+borst::TestPresenter::~TestPresenter()
 {
     mContext.mDevice.GetVkDevice().waitIdle();
 
@@ -140,7 +140,7 @@ example::TestPresenter::~TestPresenter()
 }
 
 void
-example::TestPresenter::Compute( vk::CommandBuffer inCommandBuffer ) const
+borst::TestPresenter::Compute( vk::CommandBuffer inCommandBuffer ) const
 {
     // Reset image
     inCommandBuffer.clearColorImage
@@ -200,7 +200,7 @@ example::TestPresenter::Compute( vk::CommandBuffer inCommandBuffer ) const
 }
 
 void
-example::TestPresenter::Present( vk::CommandBuffer inCommandBuffer ) const
+borst::TestPresenter::Present( vk::CommandBuffer inCommandBuffer ) const
 {
     // Draw screen rect
     mPipeline->Bind( inCommandBuffer );

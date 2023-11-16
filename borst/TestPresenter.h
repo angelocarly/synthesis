@@ -1,5 +1,5 @@
-#ifndef Example_TestPresenter_h
-#define Example_TestPresenter_h
+#ifndef Borst_TestPresenter_h
+#define Borst_TestPresenter_h
 
 #include "burst/Presenter.h"
 
@@ -9,7 +9,7 @@
 
 #include <chrono>
 
-namespace example
+namespace borst
 {
     class TestPresenter
     :
