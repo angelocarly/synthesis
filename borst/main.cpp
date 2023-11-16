@@ -31,6 +31,6 @@ class ExampleEngine
 
 int main()
 {
-    auto engine = ExampleEngine( 800, 600, "Burst example" );
+    auto engine = ExampleEngine( 900, 900, "Burst example" );
     engine.Run();
 }
