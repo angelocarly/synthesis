@@ -1,5 +1,6 @@
 #include "borst/TestPresenter.h"
 
+#include "vkt/Buffer.h"
 #include "vkt/Device.h"
 #include "vkt/ForwardDecl.h"
 #include "vkt/GraphicsPipeline.h"
@@ -7,12 +8,15 @@
 #include "vkt/Shader.h"
 #include "vkt/ComputePipeline.h"
 
+#include <glm/glm.hpp>
+
 borst::TestPresenter::TestPresenter( burst::PresentContext const & inContext )
 :
     mContext( inContext ),
     mComputeDescriptorSetLayout(
         vkt::DescriptorSetLayoutBuilder( mContext.mDevice )
         .AddLayoutBinding( 0, vk::DescriptorType::eStorageImage, vk::ShaderStageFlagBits::eCompute )
+        .AddLayoutBinding( 1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute )
         .Build( vk::DescriptorSetLayoutCreateFlagBits::ePushDescriptorKHR )
     ),
     mGraphicsDescriptorSetLayout(
@@ -21,6 +25,25 @@ borst::TestPresenter::TestPresenter( burst::PresentContext const & inContext )
         .Build( vk::DescriptorSetLayoutCreateFlagBits::ePushDescriptorKHR )
     )
 {
+    // Buffer
+    std::size_t pointCount = 1024 * 1024;
+    mPointBuffer = vkt::BufferFactory( mContext.mDevice ).CreateBuffer
+    (
+        sizeof( glm::vec4 ) * pointCount,
+        vk::BufferUsageFlagBits::eStorageBuffer,
+        vma::AllocationCreateFlagBits::eHostAccessSequentialWrite,
+        "PointBuffer"
+    );
+
+    auto bufferData = ( glm::vec4 * ) mPointBuffer->MapMemory();
+    {
+        for( std::size_t i = 0; i < pointCount; i++ )
+        {
+            bufferData[ i ] = glm::vec4( rand() % 1000 - 500, rand() % 1000 - 500, rand() % 1000 - 500, 0 );
+        }
+    }
+    mPointBuffer->UnMapMemory();
+
     // Image
     mImage = vkt::ImageFactory( mContext.mDevice ).CreateImage
     (
@@ -161,7 +184,7 @@ borst::TestPresenter::Compute( vk::CommandBuffer inCommandBuffer ) const
     // Begin pipeline
     mComputePipeline->Bind( inCommandBuffer );
 
-    // Push descriptor set
+    // Push image descriptor set
     auto imageInfo = vk::DescriptorImageInfo
     (
         mSampler,
@@ -177,6 +200,22 @@ borst::TestPresenter::Compute( vk::CommandBuffer inCommandBuffer ) const
     theWriteDescriptorSet.setPImageInfo( & imageInfo );
 
     mComputePipeline->BindPushDescriptorSet( inCommandBuffer, theWriteDescriptorSet );
+
+    // Push buffer descriptor set
+    auto bufferInfo = vk::DescriptorBufferInfo
+    (
+        mPointBuffer->GetVkBuffer(),
+        0,
+        mPointBuffer->GetSize()
+    );
+    auto writeDescriptorSet = vk::WriteDescriptorSet();
+    writeDescriptorSet.setDstBinding( 1 );
+    writeDescriptorSet.setDstArrayElement( 0 );
+    writeDescriptorSet.setDescriptorType( vk::DescriptorType::eStorageBuffer );
+    writeDescriptorSet.setDescriptorCount( 1 );
+    writeDescriptorSet.setPBufferInfo( & bufferInfo );
+
+    mComputePipeline->BindPushDescriptorSet( inCommandBuffer, writeDescriptorSet );
 
     // Push constants
     auto time = std::chrono::duration_cast<std::chrono::microseconds>
@@ -196,7 +235,9 @@ borst::TestPresenter::Compute( vk::CommandBuffer inCommandBuffer ) const
         & thePushConstants
     );
 
-    inCommandBuffer.dispatch( 100, 1, 1 );
+    int pointCount = 1024;
+    int groupsize = 16;
+    inCommandBuffer.dispatch( ceil( pointCount / groupsize ), ceil( pointCount / groupsize), 1 );
 }
 
 void

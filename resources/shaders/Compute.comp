@@ -13,6 +13,11 @@ layout(push_constant) uniform PushConstantsBlock
 
 layout ( binding = 0, r32ui ) uniform uimage2D outImage;
 
+layout ( binding = 1 ) buffer PointBuffer
+{
+    vec4 mPoints[ 1024 * 1024 ];
+} mPointBuffer;
+
 #define hash(p)  fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453)
 #define hash2(p) fract(sin((p)*mat2(127.1,311.7, 269.5,183.3)) *43758.5453123)
 #define hash3(p) fract(sin((p)*mat3(127.1,311.7, 74.7,  269.5,183.3,246.1,  113.5,271.9,124.6))*43758.5453123)
@@ -54,10 +59,22 @@ mat3 rotateZ(float theta) {
 // Identity matrix.
 mat3 identity() {
     return mat3(
-    vec3(1, 0, 0),
-    vec3(0, 1, 0),
-    vec3(0, 0, 1)
+        vec3(1, 0, 0),
+        vec3(0, 1, 0),
+        vec3(0, 0, 1)
     );
+}
+
+vec3 getDir( vec3 pos )
+{
+    vec3 f = vec3( 0 );
+    f += vec3( -pos.z, 0.0f, pos.x );
+//    f += cross( f, vec3( 1, 0, 0 ) );
+    f = normalize( f );
+
+    f *= min( 5.0f / distance( pos, vec3( 0 ) ), 4.0f );
+
+    return f;
 }
 
 int toIntColor( vec3 col )
@@ -73,7 +90,7 @@ void drawLine( vec2 a, vec2 b )
 
     vec3 colA = vec3( 0, 0.5, 0.5 );
     vec3 colB = vec3( 0.5, 0.9, 0 );
-    float colorWeight = .05f;
+    float colorWeight = 1.85f;
 
     for( int i = 0; i < length; i++ )
     {
@@ -86,37 +103,63 @@ void drawLine( vec2 a, vec2 b )
         vec3 col = mix( colA, colB, t );
         col *= colorWeight;
 
-        imageAtomicAdd( outImage, ivec2( pos ), i );
+        imageAtomicAdd( outImage, ivec2( pos ), int( 30 * length ) );
     }
 }
 
 vec3 rotate( vec3 pos )
 {
-    float time = PushConstants.mTime - 2000;
-    return rotateY( time / 7000.0f ) * rotateX( time / 10000.0f ) * pos;
+    float time = PushConstants.mTime / 60.0f - 2000;
+    return rotateX( time / 700.0f ) * rotateY( time / 1000.0f ) * pos;
+}
+
+void cast_ray( vec3 origin, vec3 direction )
+{
+    vec3 pos = origin;
+
+    vec3 pos2 = pos + direction * 20.0f;
+    drawLine( ivec2( pos.x, pos.y ), ivec2( pos2.x, pos2.y ) );
+
+    vec2 tangent = vec2( -direction.y, direction.x ) * 1.5f;
+    drawLine( ivec2( pos.x, pos.y ), ivec2( pos2.x, pos2.y ) );
 }
 
 void main()
 {
-    vec2 randDir = normalize( vec2( hash2( vec2( gl_GlobalInvocationID.xy ) ) ) * 2.0f - 1.0f );
-    float randLength = hash( gl_GlobalInvocationID.xy );
-    vec2 xy = randDir * randLength * vec2( WIDTH, HEIGTH );
-    vec3 pos = vec3( xy.x, 0, xy.y );
-//    ivec2 pos = ivec2( gl_GlobalInvocationID.xy * vec2( WIDTH * 2, HEIGTH * 2 ) + vec2( 500 ) );
+//    vec3 randDir = normalize( vec3( hash3( vec3( gl_GlobalInvocationID.xyz ) ) ) * 2.0f - 1.0f ) * .8f;
+//    float randLength = abs( sin( float( hash( gl_GlobalInvocationID.xy ) * 3.14f ) ) );
+//    vec3 pos = randDir * randLength * vec3( WIDTH, HEIGTH, WIDTH );
+    int id = int( gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * 1024 );
+    vec3 pos = mPointBuffer.mPoints[ id ].xyz;
+    float ld = mPointBuffer.mPoints[ id ].w;
 
-    vec2 dir = normalize( vec2( 1, -1) );
-//   dir = normalize( vec2( hash2( vec2( gl_GlobalInvocationID.xy ) )  ) );
+    float time = PushConstants.mTime / 10000.0f;
+    time = sin( time ) * 0.5f + 0.5f;
+    vec3 dir = getDir( pos );
 
-    vec3 pos2 = pos + vec3( 0, 300, 0 );
+    if( length( dir ) > 2.0f )
+    {
+        // Reset node
+        pos = vec3( hash3( gl_GlobalInvocationID.xyz ) ) * vec3( WIDTH ) - vec3( WIDTH );
+        dir = vec3( 0 );
+    }
+
+    float range = 750.0f;
+    if( min( pos.x, min( pos.y, pos.z )) < -range || max( pos.x, max( pos.y, pos.z ) ) > range )
+    {
+        pos = vec3( hash3( gl_GlobalInvocationID.xyz * time ) ) * vec3( range * 2 ) - vec3( range );
+        dir = vec3( 0.01f );
+    }
+
+    vec3 pos2 = pos + ld * dir * 10.0f;
+
+    mPointBuffer.mPoints[ id ] = vec4( pos2, length( dir ) + ld );
+
+    dir = rotate( dir );
 
     pos = rotate( pos );
-    float time = PushConstants.mTime - 2000;
-    pos2 = rotateY( time / 20000.0f ) * rotateZ( time / 8000.0f ) * pos2;
-//    pos2 = rotate( pos2 );
 
     pos += vec3( WIDTH, HEIGTH, 0 );
-    pos2 += vec3( WIDTH, HEIGTH, 0 );
 
-    drawLine( ivec2( pos.x, pos.y ), ivec2( pos2.x, pos2.y ) );
-
+    cast_ray( pos, normalize( dir ) );
 }

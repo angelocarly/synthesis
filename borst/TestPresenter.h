@@ -29,6 +29,8 @@ namespace borst
             vk::Sampler mSampler;
             vk::ImageView mImageView;
 
+            vkt::BufferPtr mPointBuffer;
+
             vkt::DescriptorSetLayoutsPtr mComputeDescriptorSetLayout;
             vkt::ComputePipelinePtr mComputePipeline;
 

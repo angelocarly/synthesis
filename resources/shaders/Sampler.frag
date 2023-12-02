@@ -16,8 +16,8 @@ void main()
     int c = int( texture( inImage, inUV ).r );
 
     //[[0.500 0.500 0.500] [-0.412 0.848 -0.142] [0.888 1.000 1.000] [0.000 0.333 0.667]]
-    float t = c / 10024.0f;
-    vec3 color = t * pal( c / 10250.0f, vec3( .5f ), vec3( -.41, .8f, -.1f ), vec3( 0.8f, 1.f, 1.f ), vec3( 0.0f, 0.3f, 0.6f ) );
+    float t = c / 30024.0f;
+    vec3 color = t * pal( t, vec3( .5f ), vec3( -.41, .8f, -.1f ), vec3( 0.8f, 1.f, 1.f ), vec3( 0.2f, 0.3f, 0.6f ) );
 
 //    int red = c % 256;
 //    int green = ( c / 256 ) % 256;
