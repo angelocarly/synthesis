@@ -5,6 +5,7 @@ layout ( local_size_x = WORKGROUP_SIZE, local_size_y = WORKGROUP_SIZE, local_siz
 
 #define WIDTH 900
 #define HEIGTH 900
+#define SCALE .7f
 
 layout(push_constant) uniform PushConstantsBlock
 {
@@ -117,11 +118,12 @@ void cast_ray( vec3 origin, vec3 direction )
 {
     vec3 pos = origin;
 
+    pos += vec3( WIDTH / 2.0f, HEIGTH / 2.0f, 0 ) / SCALE;
     vec3 pos2 = pos + direction * 20.0f;
-    drawLine( ivec2( pos.x, pos.y ), ivec2( pos2.x, pos2.y ) );
+    drawLine( ivec2( pos.x * SCALE , pos.y * SCALE ), ivec2( pos2.x * SCALE, pos2.y * SCALE ) );
 
     vec2 tangent = vec2( -direction.y, direction.x ) * 1.5f;
-    drawLine( ivec2( pos.x, pos.y ), ivec2( pos2.x, pos2.y ) );
+    drawLine( ivec2( pos.x * SCALE, pos.y * SCALE ), ivec2( pos2.x * SCALE, pos2.y * SCALE ) );
 }
 
 void main()
@@ -140,7 +142,7 @@ void main()
     if( length( dir ) > 2.0f )
     {
         // Reset node
-        pos = vec3( hash3( gl_GlobalInvocationID.xyz ) ) * vec3( WIDTH ) - vec3( WIDTH );
+        pos = vec3( hash3( gl_GlobalInvocationID.xyz ) ) * vec3( WIDTH / 2.0f ) - vec3( WIDTH / 2.0f );
         dir = vec3( 0 );
     }
 
@@ -158,8 +160,6 @@ void main()
     dir = rotate( dir );
 
     pos = rotate( pos );
-
-    pos += vec3( WIDTH, HEIGTH, 0 );
 
     cast_ray( pos, normalize( dir ) );
 }
