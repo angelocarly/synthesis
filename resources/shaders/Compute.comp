@@ -3,8 +3,8 @@
 #define WORKGROUP_SIZE 16
 layout ( local_size_x = WORKGROUP_SIZE, local_size_y = WORKGROUP_SIZE, local_size_z = 1 ) in;
 
-#define WIDTH 900
-#define HEIGTH 900
+#define WIDTH 1800
+#define HEIGTH 1800
 #define SCALE .7f
 
 layout(push_constant) uniform PushConstantsBlock
@@ -71,9 +71,10 @@ vec3 getDir( vec3 pos )
     vec3 f = vec3( 0 );
     f += vec3( -pos.z, 0.0f, pos.x );
 //    f += cross( f, vec3( 1, 0, 0 ) );
-    f = normalize( f );
+    f = normalize( f ) * 2.0f;
 
     f *= min( 5.0f / distance( pos, vec3( 0 ) ), 4.0f );
+//    f += pos * 0.000001f;
 
     return f;
 }
@@ -83,7 +84,7 @@ int toIntColor( vec3 col )
     return int( int( col.r * 255 ) + int( col.g * 255 ) * 255 + int( col.b * 255 ) * 255 * 255 );
 }
 
-void drawLine( vec2 a, vec2 b )
+void drawLine( vec2 a, vec2 b, float speed )
 {
     vec2 pos = a;
     vec2 direction = normalize( b - a );
@@ -104,13 +105,15 @@ void drawLine( vec2 a, vec2 b )
         vec3 col = mix( colA, colB, t );
         col *= colorWeight;
 
-        imageAtomicAdd( outImage, ivec2( pos ), int( 30 * length ) );
+        imageAtomicAdd( outImage, ivec2( pos ), int( 90 * length * length ) );
+        imageAtomicAdd( outImage, ivec2( pos ) + ivec2( 0, 1 ), int( 90 ) );
     }
 }
 
 vec3 rotate( vec3 pos )
 {
-    float time = PushConstants.mTime / 60.0f - 2000;
+//    float time = PushConstants.mTime / 60.0f - 2000;
+    float time = 2000 / 60.0f - 2000;
     return rotateX( time / 700.0f ) * rotateY( time / 1000.0f ) * pos;
 }
 
@@ -119,11 +122,8 @@ void cast_ray( vec3 origin, vec3 direction )
     vec3 pos = origin;
 
     pos += vec3( WIDTH / 2.0f, HEIGTH / 2.0f, 0 ) / SCALE;
-    vec3 pos2 = pos + direction * 20.0f;
-    drawLine( ivec2( pos.x * SCALE , pos.y * SCALE ), ivec2( pos2.x * SCALE, pos2.y * SCALE ) );
-
-    vec2 tangent = vec2( -direction.y, direction.x ) * 1.5f;
-    drawLine( ivec2( pos.x * SCALE, pos.y * SCALE ), ivec2( pos2.x * SCALE, pos2.y * SCALE ) );
+    vec3 pos2 = pos + normalize( direction ) * 20.0f;
+    drawLine( ivec2( pos.x * SCALE , pos.y * SCALE ), ivec2( pos2.x * SCALE, pos2.y * SCALE ), length( direction ) );
 }
 
 void main()
@@ -146,20 +146,19 @@ void main()
         dir = vec3( 0 );
     }
 
-    float range = 750.0f;
+    float range = 10000.0f;
     if( min( pos.x, min( pos.y, pos.z )) < -range || max( pos.x, max( pos.y, pos.z ) ) > range )
     {
+        // Reset node
         pos = vec3( hash3( gl_GlobalInvocationID.xyz * time ) ) * vec3( range * 2 ) - vec3( range );
         dir = vec3( 0.01f );
     }
 
     vec3 pos2 = pos + ld * dir * 10.0f;
-
     mPointBuffer.mPoints[ id ] = vec4( pos2, length( dir ) + ld );
 
     dir = rotate( dir );
-
     pos = rotate( pos );
 
-    cast_ray( pos, normalize( dir ) );
+    cast_ray( pos, dir );
 }

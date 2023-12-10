@@ -16,7 +16,7 @@ class ExampleEngine
         {
         }
 
-        virtual void Update() const override
+        virtual void Update( float inDelta ) override
         {
         }
 
@@ -26,7 +26,7 @@ class ExampleEngine
         }
 
     private:
-        borst::TestPresenter mPresenter;
+        pixelsort::TestPresenter mPresenter;
 };
 
 int main()

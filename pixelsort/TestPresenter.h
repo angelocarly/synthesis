@@ -1,5 +1,5 @@
-#ifndef Borst_TestPresenter_h
-#define Borst_TestPresenter_h
+#ifndef pixelsort_TestPresenter_h
+#define pixelsort_TestPresenter_h
 
 #include "burst/Presenter.h"
 
@@ -9,7 +9,7 @@
 
 #include <chrono>
 
-namespace borst
+namespace pixelsort
 {
     class TestPresenter
     :

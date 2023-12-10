@@ -16,19 +16,19 @@ set(
 )
 
 add_executable(
-    Borst
+    Pixelsort
         ${SOURCE_FILES}
         ${HEADER_FILES}
 )
 
-set_property( TARGET Borst PROPERTY CXX_STANDARD 17 )
+set_property( TARGET Pixelsort PROPERTY CXX_STANDARD 17 )
 
 ## Project libraries
 target_link_libraries(
-        Borst PUBLIC
+        Pixelsort PUBLIC
         Burst
 )
 
 include_directories( ${BURST_ROOT_DIR} )
 
-compile_shaders( Borst "${CMAKE_SOURCE_DIR}/resources/" "${CMAKE_CURRENT_BINARY_DIR}/resources/shaders/" "${GLSL_SOURCE_FILES}" )
+compile_shaders( Pixelsort "${CMAKE_SOURCE_DIR}/resources/" "${CMAKE_CURRENT_BINARY_DIR}/resources/shaders/" "${GLSL_SOURCE_FILES}" )

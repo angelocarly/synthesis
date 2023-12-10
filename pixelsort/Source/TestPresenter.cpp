@@ -1,4 +1,4 @@
-#include "borst/TestPresenter.h"
+#include "pixelsort/TestPresenter.h"
 
 #include "vkt/Buffer.h"
 #include "vkt/Device.h"
@@ -10,7 +10,7 @@
 
 #include <glm/glm.hpp>
 
-borst::TestPresenter::TestPresenter( burst::PresentContext const & inContext )
+pixelsort::TestPresenter::TestPresenter( burst::PresentContext const & inContext )
 :
     mContext( inContext ),
     mComputeDescriptorSetLayout(
@@ -37,9 +37,21 @@ borst::TestPresenter::TestPresenter( burst::PresentContext const & inContext )
 
     auto bufferData = ( glm::vec4 * ) mPointBuffer->MapMemory();
     {
+        float radius = 1000;
         for( std::size_t i = 0; i < pointCount; i++ )
         {
-            bufferData[ i ] = glm::vec4( rand() % 1000 - 500, rand() % 1000 - 500, rand() % 1000 - 500, 0 );
+            auto pos = glm::vec4( radius * 10 );
+            while( sqrt( pos.x * pos.x + pos.y * pos.y + pos.z * pos.z ) > radius )
+            {
+                pos = glm::vec4
+                (
+                    ( rand() % int( radius * 2 ) ) - radius,
+                    ( rand() % int( radius * 2 ) ) - radius,
+                    ( rand() % int( radius * 2 ) ) - radius,
+                    0
+                );
+            }
+            bufferData[ i ] = pos;
         }
     }
     mPointBuffer->UnMapMemory();
@@ -153,7 +165,7 @@ borst::TestPresenter::TestPresenter( burst::PresentContext const & inContext )
 
 }
 
-borst::TestPresenter::~TestPresenter()
+pixelsort::TestPresenter::~TestPresenter()
 {
     mContext.mDevice.GetVkDevice().waitIdle();
 
@@ -163,7 +175,7 @@ borst::TestPresenter::~TestPresenter()
 }
 
 void
-borst::TestPresenter::Compute( vk::CommandBuffer inCommandBuffer ) const
+pixelsort::TestPresenter::Compute( vk::CommandBuffer inCommandBuffer ) const
 {
     // Reset image
     inCommandBuffer.clearColorImage
@@ -235,13 +247,13 @@ borst::TestPresenter::Compute( vk::CommandBuffer inCommandBuffer ) const
         & thePushConstants
     );
 
-    int pointCount = 1024;
+    int pointCount = 256;
     int groupsize = 16;
     inCommandBuffer.dispatch( ceil( pointCount / groupsize ), ceil( pointCount / groupsize), 1 );
 }
 
 void
-borst::TestPresenter::Present( vk::CommandBuffer inCommandBuffer ) const
+pixelsort::TestPresenter::Present( vk::CommandBuffer inCommandBuffer ) const
 {
     // Draw screen rect
     mPipeline->Bind( inCommandBuffer );
