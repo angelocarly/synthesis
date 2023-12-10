@@ -1,8 +1,12 @@
 #include <iostream>
 
+#include "burst/AssetLoader.h"
 #include "burst/Engine.h"
 
 #include "TestPresenter.h"
+
+#include <imgui.h>
+#include <ImGuiFileDialog.h>
 
 class ExampleEngine
 :
@@ -18,6 +22,28 @@ class ExampleEngine
 
         virtual void Update( float inDelta ) override
         {
+            ImGui::BeginMainMenuBar();
+            if (ImGui::MenuItem("Open Image.."))
+                ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose Image", ".png", ".");
+
+            // display
+            if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey"))
+            {
+                // action if OK
+                if (ImGuiFileDialog::Instance()->IsOk())
+                {
+                    std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
+                    std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
+
+                    // Do something with the image
+                    auto theImageResource = burst::AssetLoader::LoadImage( filePathName );
+                }
+
+                // close
+                ImGuiFileDialog::Instance()->Close();
+            }
+            ImGui::EndMainMenuBar();
+
             mPresenter.Update( inDelta );
         }
 
@@ -32,6 +58,6 @@ class ExampleEngine
 
 int main()
 {
-    auto engine = ExampleEngine( 900, 900, "Particles" );
+    auto engine = ExampleEngine( 900, 900, "Pixel sort" );
     engine.Run();
 }
