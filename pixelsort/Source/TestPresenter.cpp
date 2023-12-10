@@ -8,6 +8,9 @@
 #include "vkt/Shader.h"
 #include "vkt/ComputePipeline.h"
 
+#include <imgui.h>
+#include <ImGuiFileDialog.h>
+
 #include <glm/glm.hpp>
 
 pixelsort::TestPresenter::TestPresenter( burst::PresentContext const & inContext )
@@ -276,6 +279,33 @@ pixelsort::TestPresenter::Present( vk::CommandBuffer inCommandBuffer ) const
     mPipeline->BindPushDescriptorSet( inCommandBuffer, theWriteDescriptorSet );
 
     inCommandBuffer.draw( 3, 1, 0, 0 );
+}
+
+void
+pixelsort::TestPresenter::Update( float inDelta )
+{
+    ImGui::Begin( "Test" );
+    ImGui::End();
+
+    ImGui::Begin( "test" );
+    if (ImGui::Button("Open File Dialog"))
+        ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".cpp,.h,.hpp", ".");
+
+    // display
+    if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey"))
+    {
+        // action if OK
+        if (ImGuiFileDialog::Instance()->IsOk())
+        {
+            std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
+            std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
+            // action
+        }
+
+        // close
+        ImGuiFileDialog::Instance()->Close();
+    }
+    ImGui::End();
 }
 
 

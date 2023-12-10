@@ -27,6 +27,7 @@ set_property( TARGET Pixelsort PROPERTY CXX_STANDARD 17 )
 target_link_libraries(
         Pixelsort PUBLIC
         Burst
+        Imgui
 )
 
 include_directories( ${BURST_ROOT_DIR} )

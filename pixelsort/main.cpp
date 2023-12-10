@@ -18,6 +18,7 @@ class ExampleEngine
 
         virtual void Update( float inDelta ) override
         {
+            mPresenter.Update( inDelta );
         }
 
         virtual burst::Presenter & GetPresenter() const override

@@ -19,6 +19,7 @@ namespace pixelsort
             TestPresenter( burst::PresentContext const & inContext );
             ~TestPresenter();
 
+            void Update( float inDelta );
             void Compute( vk::CommandBuffer inCommandBuffer ) const override;
             void Present( vk::CommandBuffer inCommandBuffer ) const override;
 
