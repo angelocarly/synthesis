@@ -6,6 +6,7 @@
 #include "vkt/Device.h"
 #include "vkt/ForwardDecl.h"
 #include "vkt/Image.h"
+#include "burst/AssetLoader.h"
 
 #include <chrono>
 
@@ -16,12 +17,14 @@ namespace pixelsort
         public burst::Presenter
     {
         public:
-            TestPresenter( burst::PresentContext const & inContext );
+            TestPresenter( burst::PresentContext const & inContext, burst::ImageAsset inImage );
             ~TestPresenter();
 
             void Update( float inDelta );
             void Compute( vk::CommandBuffer inCommandBuffer ) const override;
             void Present( vk::CommandBuffer inCommandBuffer ) const override;
+
+            void SetImage( burst::ImageAsset inImage );
 
         private:
             burst::PresentContext const & mContext;
@@ -46,6 +49,9 @@ namespace pixelsort
             struct PushConstants
             {
                 float mTime;
+                std::uint32_t mWidth;
+                std::uint32_t mHeight;
+                bool mEvenSort;
             };
     };
 }

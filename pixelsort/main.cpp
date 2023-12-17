@@ -16,7 +16,7 @@ class ExampleEngine
         ExampleEngine( std::size_t inWidth, std::size_t inHeight, const char * inTitle )
         :
             burst::Engine( inWidth, inHeight, inTitle ),
-            mPresenter( GetPresentContext() )
+            mEmptyPresenter()
         {
         }
 
@@ -24,7 +24,7 @@ class ExampleEngine
         {
             ImGui::BeginMainMenuBar();
             if (ImGui::MenuItem("Open Image.."))
-                ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose Image", ".png", ".");
+                ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose Image", ".png", "/Users/angelo/Projects/nel.re/static/images/.");
 
             // display
             if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey"))
@@ -36,7 +36,8 @@ class ExampleEngine
                     std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
 
                     // Do something with the image
-                    auto theImageResource = burst::AssetLoader::LoadImage( filePathName );
+                    auto imageResource = burst::AssetLoader::LoadImage( filePathName );
+                    mPresenter = std::make_shared< pixelsort::TestPresenter >( GetPresentContext(), imageResource );
                 }
 
                 // close
@@ -44,16 +45,28 @@ class ExampleEngine
             }
             ImGui::EndMainMenuBar();
 
-            mPresenter.Update( inDelta );
+            if( mPresenter ) mPresenter->Update( inDelta );
         }
 
         virtual burst::Presenter & GetPresenter() const override
         {
-            return ( burst::Presenter & ) mPresenter;
+            if( mPresenter ) return ( burst::Presenter & ) * mPresenter;
+            return ( burst::Presenter & ) mEmptyPresenter;
         }
 
     private:
-        pixelsort::TestPresenter mPresenter;
+        std::shared_ptr< pixelsort::TestPresenter > mPresenter;
+
+        class EmptyPresenter
+        :
+            public burst::Presenter
+        {
+            public:
+                void Compute( vk::CommandBuffer inCommandBuffer ) const
+                {}
+                void Present( vk::CommandBuffer inCommandBuffer ) const
+                {}
+        } mEmptyPresenter;
 };
 
 int main()

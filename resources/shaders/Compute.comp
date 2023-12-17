@@ -3,162 +3,61 @@
 #define WORKGROUP_SIZE 16
 layout ( local_size_x = WORKGROUP_SIZE, local_size_y = WORKGROUP_SIZE, local_size_z = 1 ) in;
 
-#define WIDTH 1800
-#define HEIGTH 1800
-#define SCALE .7f
-
 layout(push_constant) uniform PushConstantsBlock
 {
     float mTime;
+    int mWidth;
+    int mHeight;
+    bool mSortEven;
 } PushConstants;
 
-layout ( binding = 0, r32ui ) uniform uimage2D outImage;
-
-layout ( binding = 1 ) buffer PointBuffer
-{
-    vec4 mPoints[ 1024 * 1024 ];
-} mPointBuffer;
+layout ( binding = 0, rgba8 ) uniform image2D outImage;
 
 #define hash(p)  fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453)
 #define hash2(p) fract(sin((p)*mat2(127.1,311.7, 269.5,183.3)) *43758.5453123)
 #define hash3(p) fract(sin((p)*mat3(127.1,311.7, 74.7,  269.5,183.3,246.1,  113.5,271.9,124.6))*43758.5453123)
 #define hash2x3(p) fract(sin((p)*mat3x2(127.1,311.7,  269.5,183.3,  113.5,271.9))*43758.5453123)
 
-// Rotation matrix around the X axis.
-mat3 rotateX(float theta) {
-    float c = cos(theta);
-    float s = sin(theta);
-    return mat3(
-    vec3(1, 0, 0),
-    vec3(0, c, -s),
-    vec3(0, s, c)
-    );
-}
-
-// Rotation matrix around the Y axis.
-mat3 rotateY(float theta) {
-    float c = cos(theta);
-    float s = sin(theta);
-    return mat3(
-    vec3(c, 0, s),
-    vec3(0, 1, 0),
-    vec3(-s, 0, c)
-    );
-}
-
-// Rotation matrix around the Z axis.
-mat3 rotateZ(float theta) {
-    float c = cos(theta);
-    float s = sin(theta);
-    return mat3(
-    vec3(c, -s, 0),
-    vec3(s, c, 0),
-    vec3(0, 0, 1)
-    );
-}
-
-// Identity matrix.
-mat3 identity() {
-    return mat3(
-        vec3(1, 0, 0),
-        vec3(0, 1, 0),
-        vec3(0, 0, 1)
-    );
-}
-
-vec3 getDir( vec3 pos )
+float colorValue( vec4 c )
 {
-    vec3 f = vec3( 0 );
-    f += vec3( -pos.z, 0.0f, pos.x );
-//    f += cross( f, vec3( 1, 0, 0 ) );
-    f = normalize( f ) * 2.0f;
-
-    f *= min( 5.0f / distance( pos, vec3( 0 ) ), 4.0f );
-//    f += pos * 0.000001f;
-
-    return f;
+    return 0.2989f * c.r + 0.5870f * c.g + 0.1140f * c.b;
 }
 
-int toIntColor( vec3 col )
+void oddSort( int x )
 {
-    return int( int( col.r * 255 ) + int( col.g * 255 ) * 255 + int( col.b * 255 ) * 255 * 255 );
-}
-
-void drawLine( vec2 a, vec2 b, float speed )
-{
-    vec2 pos = a;
-    vec2 direction = normalize( b - a );
-    int length = int( distance( a, b ) );
-
-    vec3 colA = vec3( 0, 0.5, 0.5 );
-    vec3 colB = vec3( 0.5, 0.9, 0 );
-    float colorWeight = 1.85f;
-
-    for( int i = 0; i < length; i++ )
+    for( int i = 1; i + 1 < PushConstants.mHeight; i += 2 )
     {
-        pos += direction;
-
-        if( pos.x < 0 || pos.x >= WIDTH * 2 || pos.y < 0 || pos.y >= HEIGTH * 2 )
-            continue;
-
-        float t = float( i ) / float( length );
-        vec3 col = mix( colA, colB, t );
-        col *= colorWeight;
-
-        imageAtomicAdd( outImage, ivec2( pos ), int( 90 * length * length ) );
-        imageAtomicAdd( outImage, ivec2( pos ) + ivec2( 0, 1 ), int( 90 ) );
+        vec4 a = imageLoad( outImage, ivec2( x, i ) );
+        vec4 b = imageLoad( outImage, ivec2( x, i + 1 ) );
+        if( colorValue( a ) < colorValue( b ) )
+        {
+            // Already sorted
+            imageStore( outImage, ivec2( x, i ), b );
+            imageStore( outImage, ivec2( x, i + 1 ), a );
+        }
     }
 }
 
-vec3 rotate( vec3 pos )
+void evenSort( int x )
 {
-//    float time = PushConstants.mTime / 60.0f - 2000;
-    float time = 2000 / 60.0f - 2000;
-    return rotateX( time / 700.0f ) * rotateY( time / 1000.0f ) * pos;
-}
-
-void cast_ray( vec3 origin, vec3 direction )
-{
-    vec3 pos = origin;
-
-    pos += vec3( WIDTH / 2.0f, HEIGTH / 2.0f, 0 ) / SCALE;
-    vec3 pos2 = pos + normalize( direction ) * 20.0f;
-    drawLine( ivec2( pos.x * SCALE , pos.y * SCALE ), ivec2( pos2.x * SCALE, pos2.y * SCALE ), length( direction ) );
+    for( int i = 0; i + 1 < PushConstants.mHeight; i += 2 )
+    {
+        vec4 a = imageLoad( outImage, ivec2( x, i ) );
+        vec4 b = imageLoad( outImage, ivec2( x, i + 1 ) );
+        if( colorValue( a ) < colorValue( b ) )
+        {
+            // Already sorted
+            imageStore( outImage, ivec2( x, i ), b );
+            imageStore( outImage, ivec2( x, i + 1 ), a );
+        }
+    }
 }
 
 void main()
 {
-//    vec3 randDir = normalize( vec3( hash3( vec3( gl_GlobalInvocationID.xyz ) ) ) * 2.0f - 1.0f ) * .8f;
-//    float randLength = abs( sin( float( hash( gl_GlobalInvocationID.xy ) * 3.14f ) ) );
-//    vec3 pos = randDir * randLength * vec3( WIDTH, HEIGTH, WIDTH );
-    int id = int( gl_GlobalInvocationID.x + gl_GlobalInvocationID.y * 1024 );
-    vec3 pos = mPointBuffer.mPoints[ id ].xyz;
-    float ld = mPointBuffer.mPoints[ id ].w;
+    ivec2 p = ivec2( gl_GlobalInvocationID.xy );
+    if( p.x >= PushConstants.mWidth ) return;
 
-    float time = PushConstants.mTime / 10000.0f;
-    time = sin( time ) * 0.5f + 0.5f;
-    vec3 dir = getDir( pos );
-
-    if( length( dir ) > 2.0f )
-    {
-        // Reset node
-        pos = vec3( hash3( gl_GlobalInvocationID.xyz ) ) * vec3( WIDTH / 2.0f ) - vec3( WIDTH / 2.0f );
-        dir = vec3( 0 );
-    }
-
-    float range = 10000.0f;
-    if( min( pos.x, min( pos.y, pos.z )) < -range || max( pos.x, max( pos.y, pos.z ) ) > range )
-    {
-        // Reset node
-        pos = vec3( hash3( gl_GlobalInvocationID.xyz * time ) ) * vec3( range * 2 ) - vec3( range );
-        dir = vec3( 0.01f );
-    }
-
-    vec3 pos2 = pos + ld * dir * 10.0f;
-    mPointBuffer.mPoints[ id ] = vec4( pos2, length( dir ) + ld );
-
-    dir = rotate( dir );
-    pos = rotate( pos );
-
-    cast_ray( pos, dir );
+    if( PushConstants.mSortEven ) evenSort( p.x );
+    else oddSort( p.x );
 }

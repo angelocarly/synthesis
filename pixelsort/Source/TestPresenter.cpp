@@ -13,7 +13,7 @@
 
 #include <glm/glm.hpp>
 
-pixelsort::TestPresenter::TestPresenter( burst::PresentContext const & inContext )
+pixelsort::TestPresenter::TestPresenter( burst::PresentContext const & inContext, burst::ImageAsset inImage )
 :
     mContext( inContext ),
     mComputeDescriptorSetLayout(
@@ -29,42 +29,28 @@ pixelsort::TestPresenter::TestPresenter( burst::PresentContext const & inContext
     )
 {
     // Buffer
-    std::size_t pointCount = 1024 * 1024;
     mPointBuffer = vkt::BufferFactory( mContext.mDevice ).CreateBuffer
     (
-        sizeof( glm::vec4 ) * pointCount,
-        vk::BufferUsageFlagBits::eStorageBuffer,
+        sizeof( glm::vec4 ) * inImage.mWidth * inImage.mHeight,
+        vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferSrc,
         vma::AllocationCreateFlagBits::eHostAccessSequentialWrite,
         "PointBuffer"
     );
 
-    auto bufferData = ( glm::vec4 * ) mPointBuffer->MapMemory();
+    // Store image data
+    auto bufferData = ( std::uint32_t * ) mPointBuffer->MapMemory();
     {
-        float radius = 1000;
-        for( std::size_t i = 0; i < pointCount; i++ )
-        {
-            auto pos = glm::vec4( radius * 10 );
-            while( sqrt( pos.x * pos.x + pos.y * pos.y + pos.z * pos.z ) > radius )
-            {
-                pos = glm::vec4
-                (
-                    ( rand() % int( radius * 2 ) ) - radius,
-                    ( rand() % int( radius * 2 ) ) - radius,
-                    ( rand() % int( radius * 2 ) ) - radius,
-                    0
-                );
-            }
-            bufferData[ i ] = pos;
-        }
+        std::memcpy( bufferData, inImage.mPixels.data(), sizeof( glm::vec4 ) * inImage.mWidth * inImage.mHeight );
+//        std::memcpy( bufferData, inImage.mPixels.data(), sizeof( glm::vec4 ) * inImage.mWidth * 800  );
     }
     mPointBuffer->UnMapMemory();
 
     // Image
     mImage = vkt::ImageFactory( mContext.mDevice ).CreateImage
     (
-        mContext.mWidth,
-        mContext.mHeight,
-        vk::Format::eR32Uint,
+        inImage.mWidth,
+        inImage.mHeight,
+        vk::Format::eR8G8B8A8Unorm,
         vk::ImageTiling::eOptimal,
         vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst,
         vma::AllocationCreateFlagBits::eDedicatedMemory,
@@ -72,18 +58,43 @@ pixelsort::TestPresenter::TestPresenter( burst::PresentContext const & inContext
         1
     );
 
-    // Image layout
     auto commandBuffer = mContext.mDevice.BeginSingleTimeCommands();
-    mImage->MemoryBarrier
-    (
-        commandBuffer,
-        vk::ImageLayout::eGeneral,
-        vk::AccessFlagBits::eNone,
-        vk::AccessFlagBits::eShaderRead,
-        vk::PipelineStageFlagBits::eAllCommands,
-        vk::PipelineStageFlagBits::eComputeShader,
-        vk::DependencyFlagBits::eByRegion
-    );
+    {
+        // Image layout
+        mImage->MemoryBarrier
+        (
+            commandBuffer,
+            vk::ImageLayout::eGeneral,
+            vk::AccessFlagBits::eNone,
+            vk::AccessFlagBits::eShaderRead,
+            vk::PipelineStageFlagBits::eAllCommands,
+            vk::PipelineStageFlagBits::eComputeShader,
+            vk::DependencyFlagBits::eByRegion
+        );
+
+        // Copy the staging buffer into the image
+        commandBuffer.copyBufferToImage
+        (
+            mPointBuffer->GetVkBuffer(),
+            mImage->GetVkImage(),
+            vk::ImageLayout::eGeneral,
+            vk::BufferImageCopy
+            (
+                0,
+                0,
+                0,
+                vk::ImageSubresourceLayers
+                (
+                    vk::ImageAspectFlagBits::eColor,
+                    0,
+                    0,
+                    1
+                ),
+                vk::Offset3D( 0, 0, 0 ),
+                vk::Extent3D( inImage.mWidth, inImage.mHeight, 1 )
+            )
+        );
+    }
     mContext.mDevice.EndSingleTimeCommands( commandBuffer );
 
     // Sampler
@@ -94,7 +105,7 @@ pixelsort::TestPresenter::TestPresenter( burst::PresentContext const & inContext
             vk::SamplerCreateFlags(),
             vk::Filter::eNearest,
             vk::Filter::eNearest,
-            vk::SamplerMipmapMode::eNearest,
+            vk::SamplerMipmapMode::eLinear,
             vk::SamplerAddressMode::eRepeat,
             vk::SamplerAddressMode::eRepeat,
             vk::SamplerAddressMode::eRepeat,
@@ -118,7 +129,7 @@ pixelsort::TestPresenter::TestPresenter( burst::PresentContext const & inContext
             vk::ImageViewCreateFlags(),
             mImage->GetVkImage(),
             vk::ImageViewType::e2D,
-            vk::Format::eR32Uint,
+            vk::Format::eR8G8B8A8Unorm,
             vk::ComponentMapping(),
             vk::ImageSubresourceRange
             (
@@ -180,21 +191,15 @@ pixelsort::TestPresenter::~TestPresenter()
 void
 pixelsort::TestPresenter::Compute( vk::CommandBuffer inCommandBuffer ) const
 {
-    // Reset image
-    inCommandBuffer.clearColorImage
-    (
-        mImage->GetVkImage(),
-        vk::ImageLayout::eGeneral,
-        vk::ClearColorValue( std::array< float, 4 >{ 0.0f, 0.0f, 0.0f, 0.0f } ),
-        vk::ImageSubresourceRange
-        (
-            vk::ImageAspectFlagBits::eColor,
-            0,
-            1,
-            0,
-            1
-        )
-    );
+    bool compute = false;
+    ImGui::Begin("Pixelsort");
+    {
+        ImGui::Button( "Compute" );
+        compute = ImGui::IsItemActive();
+    }
+    ImGui::End();
+
+    if( !compute ) return;
 
     // Begin pipeline
     mComputePipeline->Bind( inCommandBuffer );
@@ -237,9 +242,14 @@ pixelsort::TestPresenter::Compute( vk::CommandBuffer inCommandBuffer ) const
     (
         std::chrono::system_clock::now().time_since_epoch()
     );
+    static bool sortEven = false;
+    sortEven = !sortEven;
     PushConstants thePushConstants
     {
-        ( float ) ( mStartTime - time ).count() / 1000.0f
+        ( float ) ( mStartTime - time ).count() / 1000.0f,
+        std::uint32_t( mImage->GetWidth() ),
+        std::uint32_t( mImage->GetHeight() ),
+        sortEven
     };
     inCommandBuffer.pushConstants
     (
@@ -250,9 +260,8 @@ pixelsort::TestPresenter::Compute( vk::CommandBuffer inCommandBuffer ) const
         & thePushConstants
     );
 
-    int pointCount = 256;
     int groupsize = 16;
-    inCommandBuffer.dispatch( ceil( pointCount / groupsize ), ceil( pointCount / groupsize), 1 );
+    inCommandBuffer.dispatch( ceil( mImage->GetWidth() / groupsize ), 1, 1 );
 }
 
 void
@@ -283,6 +292,11 @@ pixelsort::TestPresenter::Present( vk::CommandBuffer inCommandBuffer ) const
 
 void
 pixelsort::TestPresenter::Update( float inDelta )
+{
+}
+
+void
+pixelsort::TestPresenter::SetImage( burst::ImageAsset inImage )
 {
 }
 
