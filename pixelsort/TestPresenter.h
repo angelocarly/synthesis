@@ -24,14 +24,18 @@ namespace pixelsort
             void Compute( vk::CommandBuffer inCommandBuffer ) const override;
             void Present( vk::CommandBuffer inCommandBuffer ) const override;
 
-            void SetImage( burst::ImageAsset inImage );
-
         private:
+            void InitializeMaskImage( vk::Extent2D inExtent );
+
             burst::PresentContext const & mContext;
 
             vkt::ImagePtr mImage;
             vk::Sampler mSampler;
             vk::ImageView mImageView;
+
+            vkt::ImagePtr mMaskImage;
+            vk::Sampler mMaskSampler;
+            vk::ImageView mMaskImageView;
 
             vkt::BufferPtr mPointBuffer;
 

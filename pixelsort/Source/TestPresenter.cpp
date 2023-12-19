@@ -19,7 +19,7 @@ pixelsort::TestPresenter::TestPresenter( burst::PresentContext const & inContext
     mComputeDescriptorSetLayout(
         vkt::DescriptorSetLayoutBuilder( mContext.mDevice )
         .AddLayoutBinding( 0, vk::DescriptorType::eStorageImage, vk::ShaderStageFlagBits::eCompute )
-        .AddLayoutBinding( 1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute )
+        .AddLayoutBinding( 1, vk::DescriptorType::eStorageImage, vk::ShaderStageFlagBits::eCompute )
         .Build( vk::DescriptorSetLayoutCreateFlagBits::ePushDescriptorKHR )
     ),
     mGraphicsDescriptorSetLayout(
@@ -28,6 +28,8 @@ pixelsort::TestPresenter::TestPresenter( burst::PresentContext const & inContext
         .Build( vk::DescriptorSetLayoutCreateFlagBits::ePushDescriptorKHR )
     )
 {
+    InitializeMaskImage( vk::Extent2D( inImage.mWidth, inImage.mHeight ) );
+
     // Buffer
     mPointBuffer = vkt::BufferFactory( mContext.mDevice ).CreateBuffer
     (
@@ -221,19 +223,20 @@ pixelsort::TestPresenter::Compute( vk::CommandBuffer inCommandBuffer ) const
 
     mComputePipeline->BindPushDescriptorSet( inCommandBuffer, theWriteDescriptorSet );
 
-    // Push buffer descriptor set
-    auto bufferInfo = vk::DescriptorBufferInfo
+    // Push image mask descriptor set
+    auto maskImageInfo = vk::DescriptorImageInfo
     (
-        mPointBuffer->GetVkBuffer(),
-        0,
-        mPointBuffer->GetSize()
+        mMaskSampler,
+        mMaskImageView,
+        vk::ImageLayout::eGeneral
     );
+
     auto writeDescriptorSet = vk::WriteDescriptorSet();
     writeDescriptorSet.setDstBinding( 1 );
     writeDescriptorSet.setDstArrayElement( 0 );
-    writeDescriptorSet.setDescriptorType( vk::DescriptorType::eStorageBuffer );
+    writeDescriptorSet.setDescriptorType( vk::DescriptorType::eStorageImage );
     writeDescriptorSet.setDescriptorCount( 1 );
-    writeDescriptorSet.setPBufferInfo( & bufferInfo );
+    writeDescriptorSet.setPImageInfo( & maskImageInfo );
 
     mComputePipeline->BindPushDescriptorSet( inCommandBuffer, writeDescriptorSet );
 
@@ -295,9 +298,132 @@ pixelsort::TestPresenter::Update( float inDelta )
 {
 }
 
-void
-pixelsort::TestPresenter::SetImage( burst::ImageAsset inImage )
+void pixelsort::TestPresenter::InitializeMaskImage( vk::Extent2D inExtent )
 {
+    // Buffer
+    auto stagingBuffer = vkt::BufferFactory( mContext.mDevice ).CreateBuffer
+    (
+        sizeof( glm::vec4 ) * inExtent.width * inExtent.height,
+        vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferSrc,
+        vma::AllocationCreateFlagBits::eHostAccessSequentialWrite,
+        "MaskStagingBuffer"
+    );
+
+    // Store image data
+    auto bufferData = ( std::uint8_t * ) stagingBuffer->MapMemory();
+    {
+        std::size_t i = 0;
+        for( std::size_t y = 0; y < inExtent.height; y++ )
+        {
+            for( std::size_t x = 0; x < inExtent.width; x++ )
+            {
+                bufferData[ i + 0 ] = 255;
+                bufferData[ i + 1 ] = 0;
+                bufferData[ i + 2 ] = 0;
+                bufferData[ i + 3 ] = 255;
+                i += 4;
+            }
+        }
+    }
+    stagingBuffer->UnMapMemory();
+
+    // Image
+    mMaskImage = vkt::ImageFactory( mContext.mDevice ).CreateImage
+    (
+        inExtent.width,
+        inExtent.height,
+        vk::Format::eR8G8B8A8Unorm,
+        vk::ImageTiling::eOptimal,
+        vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst,
+        vma::AllocationCreateFlagBits::eDedicatedMemory,
+        "Test Image",
+        1
+    );
+
+    auto commandBuffer = mContext.mDevice.BeginSingleTimeCommands();
+    {
+        // Image layout
+        mMaskImage->MemoryBarrier
+        (
+            commandBuffer,
+            vk::ImageLayout::eGeneral,
+            vk::AccessFlagBits::eNone,
+            vk::AccessFlagBits::eShaderRead,
+            vk::PipelineStageFlagBits::eAllCommands,
+            vk::PipelineStageFlagBits::eComputeShader,
+            vk::DependencyFlagBits::eByRegion
+        );
+
+        // Clear the mask image
+        commandBuffer.copyBufferToImage
+        (
+            stagingBuffer->GetVkBuffer(),
+            mMaskImage->GetVkImage(),
+            vk::ImageLayout::eGeneral,
+            vk::BufferImageCopy
+            (
+                0,
+                0,
+                0,
+                vk::ImageSubresourceLayers
+                (
+                    vk::ImageAspectFlagBits::eColor,
+                    0,
+                    0,
+                    1
+                ),
+                vk::Offset3D( 0, 0, 0 ),
+                vk::Extent3D( inExtent.width, inExtent.height, 1 )
+            )
+        );
+    }
+    mContext.mDevice.EndSingleTimeCommands( commandBuffer );
+
+    // Sampler
+    mMaskSampler = mContext.mDevice.GetVkDevice().createSampler
+    (
+        vk::SamplerCreateInfo
+        (
+            vk::SamplerCreateFlags(),
+            vk::Filter::eNearest,
+            vk::Filter::eNearest,
+            vk::SamplerMipmapMode::eLinear,
+            vk::SamplerAddressMode::eRepeat,
+            vk::SamplerAddressMode::eRepeat,
+            vk::SamplerAddressMode::eRepeat,
+            0.0f,
+            VK_FALSE,
+            16.0f,
+            VK_FALSE,
+            vk::CompareOp::eAlways,
+            0.0f,
+            0.0f,
+            vk::BorderColor::eIntOpaqueBlack,
+            VK_FALSE
+        )
+    );
+
+    // Image view
+    mMaskImageView = mContext.mDevice.GetVkDevice().createImageView
+    (
+        vk::ImageViewCreateInfo
+        (
+            vk::ImageViewCreateFlags(),
+            mMaskImage->GetVkImage(),
+            vk::ImageViewType::e2D,
+            vk::Format::eR8G8B8A8Unorm,
+            vk::ComponentMapping(),
+            vk::ImageSubresourceRange
+            (
+                vk::ImageAspectFlagBits::eColor,
+                0,
+                1,
+                0,
+                1
+            )
+        )
+    );
+
 }
 
 
