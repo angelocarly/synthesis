@@ -6,12 +6,17 @@ layout( location = 0 ) out vec4 outColor;
 
 layout( binding = 0 ) uniform sampler2D inImage;
 
-vec3 pal( in float t, in vec3 a, in vec3 b, in vec3 c, in vec3 d )
+layout( push_constant ) uniform PushConstantsBlock
 {
-    return a + b*cos( 6.28318*(c*t+d) );
-}
+    int mWidth;
+    int mHeight;
+} PushConstants;
 
 void main()
 {
-    outColor = vec4( texture( inImage, inUV ).rgb, 1.0f );
+    vec3 color = texture( inImage, inUV ).rgb;
+
+    float gamma = 1.0f;
+    color = pow( color, vec3( 1.0 / gamma ) );
+    outColor = vec4( color, 1.0f );
 }

@@ -26,18 +26,20 @@ namespace pixelsort
 
         private:
             void InitializeMaskImage( vk::Extent2D inExtent );
+            void WriteImage( burst::ImageAsset inImage );
+            void WriteMaskImage();
 
             burst::PresentContext const & mContext;
+            burst::ImageAsset mInitialImage;
 
             vkt::ImagePtr mImage;
             vk::Sampler mSampler;
             vk::ImageView mImageView;
+            VkDescriptorSet mImGuiImageDescriptorSet;
 
             vkt::ImagePtr mMaskImage;
             vk::Sampler mMaskSampler;
             vk::ImageView mMaskImageView;
-
-            vkt::BufferPtr mPointBuffer;
 
             vkt::DescriptorSetLayoutsPtr mComputeDescriptorSetLayout;
             vkt::ComputePipelinePtr mComputePipeline;
@@ -57,6 +59,11 @@ namespace pixelsort
                 std::uint32_t mHeight;
                 bool mEvenSort;
             };
+
+            bool mCompute = false;
+            bool mShowMask = false;
+            int mMaskWidth = 100;
+            int mMaskHeight = 100;
     };
 }
 
