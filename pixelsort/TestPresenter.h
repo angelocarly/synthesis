@@ -2,11 +2,15 @@
 #define pixelsort_TestPresenter_h
 
 #include "burst/Presenter.h"
+#include "burst/AssetLoader.h"
+#include "burst/Gui.h"
 
 #include "vkt/Device.h"
 #include "vkt/ForwardDecl.h"
 #include "vkt/Image.h"
-#include "burst/AssetLoader.h"
+#include "imgui.h"
+
+#include <glm/glm.hpp>
 
 #include <chrono>
 
@@ -25,21 +29,30 @@ namespace pixelsort
             void Present( vk::CommandBuffer inCommandBuffer ) const override;
 
         private:
-            void InitializeMaskImage( vk::Extent2D inExtent );
             void WriteImage( burst::ImageAsset inImage );
             void WriteMaskImage();
+            void ClearPaintImage();
+
+            void PaintDrawImage( const glm::vec2 inpos );
 
             burst::PresentContext const & mContext;
             burst::ImageAsset mInitialImage;
 
-            vkt::ImagePtr mImage;
-            vk::Sampler mSampler;
-            vk::ImageView mImageView;
-            VkDescriptorSet mImGuiImageDescriptorSet;
+            struct ImageData
+            {
+                vkt::ImagePtr mImage;
+                vk::Sampler mSampler;
+                vk::ImageView mImageView;
+            };
+            ImageData CreateImageData( vk::Extent2D inExtent );
+            void DestroyImageData( ImageData const & inImageData );
+            void SaveImage();
 
-            vkt::ImagePtr mMaskImage;
-            vk::Sampler mMaskSampler;
-            vk::ImageView mMaskImageView;
+            ImageData mDisplayImage;
+            ImageData mMaskImage;
+            ImageData mDrawImage;
+
+            burst::gui::ImageInspector mDisplayInspector;
 
             vkt::DescriptorSetLayoutsPtr mComputeDescriptorSetLayout;
             vkt::ComputePipelinePtr mComputePipeline;
@@ -61,9 +74,12 @@ namespace pixelsort
             };
 
             bool mCompute = false;
-            bool mShowMask = false;
-            int mMaskWidth = 100;
-            int mMaskHeight = 100;
+            bool mShowMask = true;
+            bool mShowDraw = true;
+            bool mBlendEdges = false;
+            int mBlendRange = 100;
+            int mPencilSize = 20;
+            int mMaskChance = 100;
     };
 }
 

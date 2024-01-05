@@ -71,6 +71,6 @@ class ExampleEngine
 
 int main()
 {
-    auto engine = ExampleEngine( 1920, 1080, "Pixel sort" );
+    auto engine = ExampleEngine( 1600, 900, "Pixel sort" );
     engine.Run();
 }
