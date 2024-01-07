@@ -37,7 +37,7 @@ class ExampleEngine
 
                     // Do something with the image
                     auto imageResource = burst::AssetLoader::LoadImage( filePathName );
-                    mPresenter = std::make_shared< pixelsort::TestPresenter >( GetPresentContext(), imageResource );
+                    mPresenter = std::make_shared< synthesis::TestPresenter >( GetPresentContext(), imageResource );
                 }
 
                 // close
@@ -55,7 +55,7 @@ class ExampleEngine
         }
 
     private:
-        std::shared_ptr< pixelsort::TestPresenter > mPresenter;
+        std::shared_ptr< synthesis::TestPresenter > mPresenter;
 
         class EmptyPresenter
         :
@@ -71,6 +71,6 @@ class ExampleEngine
 
 int main()
 {
-    auto engine = ExampleEngine( 1600, 900, "Pixel sort" );
+    auto engine = ExampleEngine( 1600, 900, "Synthesis" );
     engine.Run();
 }
