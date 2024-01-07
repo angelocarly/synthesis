@@ -16,33 +16,17 @@ class ExampleEngine
         ExampleEngine( std::size_t inWidth, std::size_t inHeight, const char * inTitle )
         :
             burst::Engine( inWidth, inHeight, inTitle ),
-            mEmptyPresenter()
+            mEmptyPresenter(),
+            mPresenter( std::make_shared< synthesis::TestPresenter >( GetPresentContext(), vk::Extent2D( inWidth, inHeight ) ) )
         {
         }
 
         virtual void Update( float inDelta ) override
         {
             ImGui::BeginMainMenuBar();
-            if (ImGui::MenuItem("Open Image.."))
-                ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose Image", ".png", "/Users/angelo/Projects/nel.re/static/images/.");
+//            if (ImGui::MenuItem("Open Image.."))
+//                ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose Image", ".png", "/Users/angelo/Projects/nel.re/static/images/.");
 
-            // display
-            if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey"))
-            {
-                // action if OK
-                if (ImGuiFileDialog::Instance()->IsOk())
-                {
-                    std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
-                    std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
-
-                    // Do something with the image
-                    auto imageResource = burst::AssetLoader::LoadImage( filePathName );
-                    mPresenter = std::make_shared< synthesis::TestPresenter >( GetPresentContext(), imageResource );
-                }
-
-                // close
-                ImGuiFileDialog::Instance()->Close();
-            }
             ImGui::EndMainMenuBar();
 
             if( mPresenter ) mPresenter->Update( inDelta );

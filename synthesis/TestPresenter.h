@@ -21,7 +21,7 @@ namespace synthesis
         public burst::Presenter
     {
         public:
-            TestPresenter( burst::PresentContext const & inContext, burst::ImageAsset inImage );
+            TestPresenter( burst::PresentContext const & inContext, vk::Extent2D inExtent );
             ~TestPresenter();
 
             void Update( float inDelta );
@@ -29,12 +29,6 @@ namespace synthesis
             void Present( vk::CommandBuffer inCommandBuffer ) const override;
 
         private:
-            void WriteImage( burst::ImageAsset inImage );
-            void WriteMaskImage();
-            void ClearPaintImage();
-
-            void PaintDrawImage( const glm::vec2 inpos );
-
             burst::PresentContext const & mContext;
             burst::ImageAsset mInitialImage;
 
@@ -49,8 +43,6 @@ namespace synthesis
             void SaveImage();
 
             ImageData mDisplayImage;
-            ImageData mMaskImage;
-            ImageData mDrawImage;
 
             burst::gui::ImageInspector mDisplayInspector;
 
@@ -70,7 +62,7 @@ namespace synthesis
                 float mTime;
                 std::uint32_t mWidth;
                 std::uint32_t mHeight;
-                bool mEvenSort;
+                float mInput1;
             };
 
             bool mCompute = false;
@@ -80,6 +72,8 @@ namespace synthesis
             int mBlendRange = 100;
             int mPencilSize = 20;
             int mMaskChance = 100;
+
+            float mInput1 = 0.0f;
     };
 }
 

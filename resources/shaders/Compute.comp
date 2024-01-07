@@ -8,59 +8,21 @@ layout(push_constant) uniform PushConstantsBlock
     float mTime;
     int mWidth;
     int mHeight;
-    bool mSortEven;
+    float mInput1;
 } PushConstants;
 
 layout ( binding = 0, rgba8 ) uniform image2D outImage;
-layout ( binding = 1, rgba8 ) uniform image2D maskImage;
 
 #define hash(p)  fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453)
 #define hash2(p) fract(sin((p)*mat2(127.1,311.7, 269.5,183.3)) *43758.5453123)
 #define hash3(p) fract(sin((p)*mat3(127.1,311.7, 74.7,  269.5,183.3,246.1,  113.5,271.9,124.6))*43758.5453123)
 #define hash2x3(p) fract(sin((p)*mat3x2(127.1,311.7,  269.5,183.3,  113.5,271.9))*43758.5453123)
 
-float colorValue( vec4 c )
-{
-    return 0.2989f * c.r + 0.5870f * c.g + 0.1140f * c.b;
-}
-
-void sort( int x, int y )
-{
-    vec4 maskA = imageLoad( maskImage, ivec2( x, y ) );
-    vec4 maskB = imageLoad( maskImage, ivec2( x, y + 1 ) );
-    if( maskA.r < .1f || maskB.r < .1f || maskA.r - maskB.r > .1f ) return;
-
-    vec4 a = imageLoad( outImage, ivec2( x, y ) );
-    vec4 b = imageLoad( outImage, ivec2( x, y + 1 ) );
-    if( colorValue( a ) < colorValue( b ) )
-    {
-        // Already sorted
-        imageStore( outImage, ivec2( x, y ), b );
-        imageStore( outImage, ivec2( x, y + 1 ), a );
-    }
-}
-
-void oddSort( int x )
-{
-    for( int i = 1; i + 1 < PushConstants.mHeight; i += 2 )
-    {
-        sort( x, i );
-    }
-}
-
-void evenSort( int x )
-{
-    for( int i = 0; i + 1 < PushConstants.mHeight; i += 2 )
-    {
-        sort( x, i );
-    }
-}
-
 void main()
 {
     ivec2 p = ivec2( gl_GlobalInvocationID.xy );
     if( p.x >= PushConstants.mWidth ) return;
+    if( p.y >= PushConstants.mHeight ) return;
 
-    if( PushConstants.mSortEven ) evenSort( p.x );
-    else oddSort( p.x );
+    imageStore( outImage, p, vec4( PushConstants.mInput1, 0, 0, 1 ) );
 }
